@@ -1,39 +1,33 @@
 import { Injectable } from '@nestjs/common';
-import { Todo } from './todo.model';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Todo } from './todo.schema';
 
 @Injectable()
 export class TodosService {
-  private todos: Todo[] = [];
-  private idCounter = 1;
+  constructor(
+    @InjectModel(Todo.name) private readonly todoModel: Model<Todo>,
+  ) {}
 
-  getTodos(): Todo[] {
-    return this.todos;
+  getTodos(): Promise<Todo[]> {
+    return this.todoModel.find().exec();
   }
 
-  addTodo(title: string): Todo {
-    const newTodo: Todo = {
-      id: this.idCounter++,
-      title,
-      completed: false,
-    };
-    this.todos.push(newTodo);
-    return newTodo;
+  addTodo(title: string): Promise<Todo> {
+    const newTodo = new this.todoModel({ title });
+    return newTodo.save();
   }
 
-  toggleComplete(id: number): Todo | undefined {
-    const todo = this.todos.find((t) => t.id === id);
+  async toggleComplete(id: number): Promise<Todo | undefined> {
+    const todo = await this.todoModel.findById(id).exec()!;
     if (todo) {
       todo.completed = !todo.completed;
+      return todo.save();
     }
-    return todo;
   }
 
-  deleteTodo(id: number): Todo | null {
-    const index = this.todos.findIndex((t) => t.id === id);
-    if (index > -1) {
-      const [removedTodo] = this.todos.splice(index, 1);
-      return removedTodo;
-    }
-    return null;
+  // Delete a todo
+  async deleteTodo(id: number): Promise<Todo | null> {
+    return this.todoModel.findByIdAndDelete(id).exec();
   }
 }
